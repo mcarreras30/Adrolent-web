@@ -156,6 +156,7 @@ tr:last-child td{border-bottom:none}
   </div>
   <div class="tabs">
     <button class="tab-item active" id="tabbtn-productos" onclick="showTab('productos')">Productos</button>
+    <button class="tab-item" id="tabbtn-pedidos" onclick="showTab('pedidos')">Pedidos</button>
     <button class="tab-item" id="tabbtn-stats" onclick="showTab('stats')">Estadísticas</button>
   </div>
 
@@ -173,6 +174,22 @@ tr:last-child td{border-bottom:none}
       </table>
       <div class="loading-state" id="prod-loading">Cargando productos…</div>
       <div class="empty-state" id="prod-empty" style="display:none">Todavía no hay productos cargados.</div>
+    </div>
+  </div>
+
+  <div class="main tab-panel" id="tab-pedidos">
+    <div class="main-head">
+      <h2>Pedidos</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Fecha</th><th>Productos</th><th>Total</th><th>Método de pago</th><th>Cliente</th><th>Estado</th></tr>
+        </thead>
+        <tbody id="pedidos-tbody"></tbody>
+      </table>
+      <div class="loading-state" id="pedidos-loading" style="display:none">Cargando pedidos…</div>
+      <div class="empty-state" id="pedidos-empty" style="display:none">Todavía no hay pedidos registrados.</div>
     </div>
   </div>
 
@@ -308,6 +325,7 @@ function showTab(name){
   document.getElementById('tabbtn-'+name).classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='stats')loadStats();
+  if(name==='pedidos')loadPedidos();
 }
 
 // ── PRODUCTOS ──
@@ -450,6 +468,39 @@ function toast(msg){
   t.textContent=msg;
   t.classList.add('on');
   setTimeout(()=>t.classList.remove('on'),2800);
+}
+
+// ── PEDIDOS ──
+const ESTADO_BADGE={pagado:'ok',pendiente:'neutral',cancelado:'no'};
+async function loadPedidos(){
+  document.getElementById('pedidos-loading').style.display='block';
+  document.getElementById('pedidos-empty').style.display='none';
+  const {data,error}=await sb.from('pedidos').select('*').order('created_at',{ascending:false});
+  document.getElementById('pedidos-loading').style.display='none';
+  if(error){toast('Error al cargar pedidos: '+error.message);return;}
+  renderPedidos(data||[]);
+}
+function renderPedidos(pedidos){
+  const tb=document.getElementById('pedidos-tbody');
+  if(!pedidos.length){document.getElementById('pedidos-empty').style.display='block';tb.innerHTML='';return;}
+  document.getElementById('pedidos-empty').style.display='none';
+  tb.innerHTML=pedidos.map(p=>{
+    const fecha=p.created_at?new Date(p.created_at).toLocaleString('es-AR'):'—';
+    const items=Array.isArray(p.productos)?p.productos:[];
+    const productosHtml=items.length
+      ?items.map(it=>escapeHtml(`${it.nombre} x${it.cantidad}`)).join('<br>')
+      :'—';
+    const badgeClass=ESTADO_BADGE[p.estado]||'neutral';
+    return `
+    <tr>
+      <td>${fecha}</td>
+      <td>${productosHtml}</td>
+      <td class="p-price">$${Number(p.total||0).toLocaleString('es-AR')}</td>
+      <td>${escapeHtml(p.metodo_pago||'—')}</td>
+      <td><div class="p-nm">${escapeHtml(p.cliente_nombre||'—')}</div><div class="p-desc">${escapeHtml(p.cliente_telefono||'')}</div></td>
+      <td><span class="badge ${badgeClass}">${escapeHtml(p.estado||'—')}</span></td>
+    </tr>`;
+  }).join('');
 }
 
 // ── ESTADÍSTICAS ──

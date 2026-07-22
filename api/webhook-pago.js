@@ -1,6 +1,52 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = 'https://qrcrjxfucxoydzcthobd.supabase.co';
+const NOTIFICACION_EMAIL_TO = 'mcarreras@udesa.edu.ar';
+
+const METODO_PAGO_LABEL = {
+  efectivo: 'Efectivo',
+  transferencia: 'Transferencia bancaria',
+  mercadopago: 'Mercado Pago',
+  debito: 'Débito',
+  credito: 'Crédito',
+};
+
+async function enviarEmailVenta({ productos, total, cliente_nombre, cliente_telefono, metodo_pago, paymentId }) {
+  const totalFmt = Number(total).toLocaleString('es-AR');
+  const itemsHtml = (productos || [])
+    .map(p => `<li>${p.nombre} x${p.cantidad} — $${Number(p.precio * p.cantidad).toLocaleString('es-AR')}</li>`)
+    .join('');
+
+  const html = `
+    <div style="font-family:sans-serif;color:#1a2d4f">
+      <h2 style="color:#1a6ab5">Nueva venta confirmada</h2>
+      <ul>${itemsHtml}</ul>
+      <p><strong>Total:</strong> $${totalFmt}</p>
+      <p><strong>Cliente:</strong> ${cliente_nombre || '—'}</p>
+      <p><strong>Teléfono:</strong> ${cliente_telefono || '—'}</p>
+      <p><strong>Método de pago:</strong> ${METODO_PAGO_LABEL[metodo_pago] || metodo_pago || '—'}</p>
+      <p><strong>N° de operación (Mercado Pago):</strong> ${paymentId}</p>
+    </div>`;
+
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'Adrolent Óptica <onboarding@resend.dev>',
+      to: NOTIFICACION_EMAIL_TO,
+      subject: `Nueva venta en Adrolent — $${totalFmt}`,
+      html,
+    }),
+  });
+
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    throw new Error(`Resend respondió ${r.status}: ${detail}`);
+  }
+}
 
 module.exports = async (req, res) => {
   try {
@@ -72,6 +118,21 @@ module.exports = async (req, res) => {
       console.error('Error insertando pedido:', insError);
       res.status(500).json({ error: 'No se pudo registrar el pedido' });
       return;
+    }
+
+    try {
+      await enviarEmailVenta({
+        productos: meta.productos,
+        total: payment.transaction_amount,
+        cliente_nombre: meta.cliente_nombre,
+        cliente_telefono: meta.cliente_telefono,
+        metodo_pago: meta.metodo_pago,
+        paymentId: paymentIdStr,
+      });
+    } catch (emailErr) {
+      // El pedido ya quedó registrado; un email que falla no debe hacer
+      // que Mercado Pago reintente ni afectar la respuesta del webhook.
+      console.error('Error enviando email de notificación de venta:', emailErr);
     }
 
     res.status(200).json({ received: true });

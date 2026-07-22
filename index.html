@@ -406,11 +406,6 @@ footer{background:var(--dark);color:rgba(255,255,255,.5)}
 .po-icon{font-size:20px;width:26px;text-align:center}
 .po-name{font-weight:600;font-size:14px;color:var(--text)}
 .po-desc{font-size:12px;color:var(--text3);margin-top:1px}
-.transf-info{background:var(--blue-xxl);border-radius:var(--r);padding:13px 16px;border:1px solid var(--border);margin-top:10px;display:none}
-.transf-info.on{display:block}
-.transf-info p{font-size:13px;color:var(--text2);line-height:1.7}
-.transf-copy{display:flex;align-items:center;gap:8px;background:white;border-radius:8px;padding:8px 12px;margin-top:8px;cursor:pointer;border:1px solid var(--border)}
-.transf-copy span{font-size:13px;font-weight:600;color:var(--blue);flex:1}
 .ck-btns{display:flex;gap:10px;margin-top:8px}
 .btn-ck-back{flex:1;background:var(--bg);color:var(--text3);border:1.5px solid var(--border);padding:12px;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;font-family:'Nunito',sans-serif;transition:all .2s}
 .btn-ck-next{flex:2;background:var(--blue);color:white;border:none;padding:12px;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:all .2s}
@@ -570,16 +565,12 @@ footer{background:var(--dark);color:rgba(255,255,255,.5)}
         <p style="font-size:13px;color:var(--text3);margin-bottom:14px">Elegí cómo querés pagar:</p>
         <div class="pay-opts">
           <div class="pay-opt" onclick="selPago(this,'efectivo')"><div class="po-icon">💵</div><div><div class="po-name">Efectivo</div><div class="po-desc">Coordinamos por WhatsApp</div></div></div>
-          <div class="pay-opt" onclick="selPago(this,'transferencia')"><div class="po-icon">🏦</div><div><div class="po-name">Transferencia bancaria</div><div class="po-desc">Alias: adrolent</div></div></div>
+          <div class="pay-opt" onclick="selPago(this,'transferencia')"><div class="po-icon">🏦</div><div><div class="po-name">Transferencia bancaria</div><div class="po-desc">Te lleva a Mercado Pago</div></div></div>
           <div class="pay-opt" onclick="selPago(this,'mercadopago')"><div class="po-icon">💙</div><div><div class="po-name">Mercado Pago</div><div class="po-desc">Abre MP con el monto ya cargado</div></div></div>
           <div class="pay-opt" onclick="selPago(this,'debito')"><div class="po-icon">💳</div><div><div class="po-name">Tarjeta de débito</div><div class="po-desc">Te lleva a Mercado Pago</div></div></div>
           <div class="pay-opt" onclick="selPago(this,'credito')"><div class="po-icon">💳</div><div><div class="po-name">Tarjeta de crédito — 3 cuotas sin interés</div><div class="po-desc">Visa, Mastercard, Naranja X</div></div></div>
         </div>
-        <div class="transf-info" id="transf-info">
-          <p><strong>Alias:</strong> adrolent<br><strong>CVU:</strong> 0270024310000252360016<br><strong>Titular:</strong> Adrolent S.R.L. · CUIT 30-57725837-2</p>
-          <div class="transf-copy" onclick="copiarAlias()"><span>adrolent</span><button>📋 Copiar</button></div>
-        </div>
-        <div class="ck-btns"><button class="btn-ck-back" onclick="ckBack(2)">← Volver</button><button class="btn-ck-next" onclick="ckNext(2)">Confirmar pedido ✓</button></div>
+        <div class="ck-btns"><button class="btn-ck-back" onclick="ckBack(2)">← Volver</button><button class="btn-ck-next" id="ck-pay-btn" onclick="ckNext(2)">Confirmar pedido ✓</button></div>
       </div>
       <div class="ck-panel" id="panel-3">
         <div class="ck-confirm">
@@ -1299,25 +1290,44 @@ function ckNext(from){
   }
   if(from===2){
     if(!pagoSel){toast('Elegí un medio de pago');return;}
-    buildConfirmation();sendPedidoWa();
-    const total=cart.reduce((s,x)=>s+x.price*x.qty,0);
-    if(pagoSel==='efectivo')setTimeout(()=>confWa(),500);
-    if(pagoSel==='mercadopago'||pagoSel==='debito'||pagoSel==='credito'){
-      setTimeout(async()=>{
-        try{
-          const res=await fetch('https://api.mercadopago.com/checkout/preferences',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer APP_USR-5692519667437712-060514-0a0e179fb88b2faf6f7a72d19e4bc70d-3453343090'},body:JSON.stringify({items:cart.map(x=>{return{title:x.nm,quantity:x.qty,unit_price:x.price,currency_id:'ARS'}}),payer:{email:(document.getElementById('ck-email').value)||'cliente@adrolent.com'},back_urls:{success:window.location.href,failure:window.location.href,pending:window.location.href},auto_return:'approved'})});
-          const data=await res.json();
-          window.open(data.init_point||'https://link.mercadopago.com.ar/adrolentoptica?amount='+total,'_blank');
-        }catch(e){window.open('https://link.mercadopago.com.ar/adrolentoptica?amount='+total,'_blank');}
-      },400);
+    if(pagoSel==='efectivo'){
+      buildConfirmation();sendPedidoWa();
+      setTimeout(()=>confWa(),500);
+    }else{
+      iniciarPagoMercadoPago();
+      return;
     }
   }
   ckStep=from+1;showPanel(ckStep);
 }
 function ckBack(from){ckStep=from-1;showPanel(ckStep);}
-function selPago(el,tipo){document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('sel'));el.classList.add('sel');pagoSel=tipo;document.getElementById('transf-info').classList.toggle('on',tipo==='transferencia');}
-function copiarAlias(){navigator.clipboard.writeText('adrolent').then(()=>toast('Alias copiado'));}
+function selPago(el,tipo){document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('sel'));el.classList.add('sel');pagoSel=tipo;}
 const PAGO_LABEL={efectivo:'Efectivo',transferencia:'Transferencia bancaria',mercadopago:'Mercado Pago',debito:'Débito',credito:'Crédito — 3 cuotas sin interés'};
+async function iniciarPagoMercadoPago(){
+  const btn=document.getElementById('ck-pay-btn');
+  const originalTxt=btn.textContent;
+  btn.disabled=true;btn.textContent='Redirigiendo a Mercado Pago…';
+  try{
+    const items=cart.map(x=>({nombre:x.nm,cantidad:x.qty,precio:x.price}));
+    const comprador={
+      nombre:document.getElementById('ck-nombre').value.trim(),
+      apellido:document.getElementById('ck-apellido').value.trim(),
+      email:document.getElementById('ck-email').value.trim(),
+      telefono:document.getElementById('ck-tel').value.trim(),
+    };
+    const r=await fetch('/api/crear-preferencia',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({items,comprador,metodoPago:pagoSel})
+    });
+    const data=await r.json();
+    if(!r.ok||!data.init_point)throw new Error(data.error||'No se pudo iniciar el pago');
+    window.location.href=data.init_point;
+  }catch(e){
+    toast('❌ '+(e.message||'No se pudo iniciar el pago con Mercado Pago'));
+    btn.disabled=false;btn.textContent=originalTxt;
+  }
+}
 function buildConfirmation(){
   const n=document.getElementById('ck-nombre').value+' '+document.getElementById('ck-apellido').value;
   const e=document.getElementById('ck-email').value;

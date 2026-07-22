@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gracias por tu compra — Adrolent Óptica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#1a6ab5;
+  --blue-d:#0f4f8a;
+  --text:#1a2d4f;
+  --text3:#718096;
+  --border:#e2e8f0;
+  --white:#ffffff;
+  --green:#22c55e;
+  --red:#ef4444;
+  --amber:#d97706;
+  --r:12px;
+  --r3:24px;
+}
+body{font-family:'Nunito',sans-serif;font-weight:500;color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(-45deg,#0d2b5e,#1565a8,#2b8fd4,#0a4a8a)}
+.card{background:var(--white);border-radius:var(--r3);padding:44px 36px;width:100%;max-width:420px;text-align:center;box-shadow:0 32px 64px rgba(0,0,0,.25)}
+.icon{font-size:48px;margin-bottom:16px}
+h1{font-family:'Nunito',sans-serif;font-weight:900;font-size:24px;margin-bottom:10px}
+p{font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:6px}
+.op{font-size:12px;color:var(--text3);margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.btn{display:inline-block;margin-top:24px;background:var(--blue);color:white;text-decoration:none;padding:13px 28px;border-radius:50px;font-size:14px;font-weight:700;transition:background .2s}
+.btn:hover{background:var(--blue-d)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon" id="icon">⏳</div>
+  <h1 id="title">Procesando…</h1>
+  <p id="msg">Un momento, estamos confirmando tu pago.</p>
+  <div class="op" id="op" style="display:none"></div>
+  <a class="btn" href="/index.html#catalogo">Volver al sitio</a>
+</div>
+<script>
+const params = new URLSearchParams(window.location.search);
+const estado = params.get('collection_status') || params.get('status') || '';
+const paymentId = params.get('payment_id') || params.get('collection_id') || '';
+
+const iconEl = document.getElementById('icon');
+const titleEl = document.getElementById('title');
+const msgEl = document.getElementById('msg');
+const opEl = document.getElementById('op');
+
+if (estado === 'approved') {
+  iconEl.textContent = '✅';
+  titleEl.textContent = '¡Gracias por tu compra!';
+  msgEl.textContent = 'Tu pago fue aprobado. En breve nos vamos a comunicar por WhatsApp para coordinar la entrega.';
+} else if (estado === 'in_process' || estado === 'pending') {
+  iconEl.textContent = '⏳';
+  titleEl.textContent = 'Tu pago está siendo procesado';
+  msgEl.textContent = 'Mercado Pago todavía está confirmando el pago. Te avisamos apenas se acredite.';
+} else if (estado === 'rejected' || estado === 'cancelled' || estado === 'failure') {
+  iconEl.textContent = '❌';
+  titleEl.textContent = 'No pudimos procesar tu pago';
+  msgEl.textContent = 'El pago no se completó. Podés volver a intentarlo desde el carrito.';
+} else {
+  iconEl.textContent = 'ℹ️';
+  titleEl.textContent = 'Gracias';
+  msgEl.textContent = 'Si tenés dudas sobre tu compra, escribinos por WhatsApp.';
+}
+
+if (paymentId) {
+  opEl.textContent = 'N° de operación: ' + paymentId;
+  opEl.style.display = 'block';
+}
+</script>
+</body>
+</html>

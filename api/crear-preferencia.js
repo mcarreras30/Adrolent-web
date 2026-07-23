@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { items, comprador, metodoPago } = req.body || {};
+  const { items, comprador, metodoPago, envio } = req.body || {};
 
   if (!Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: 'El carrito está vacío' });
@@ -56,6 +56,15 @@ module.exports = async (req, res) => {
           cliente_nombre: `${comprador.nombre} ${comprador.apellido || ''}`.trim(),
           cliente_telefono: String(comprador.telefono),
           metodo_pago: metodoPago || 'mercadopago',
+          envio: {
+            calle: (envio && envio.calle) || '',
+            numero: (envio && envio.numero) || '',
+            piso: (envio && envio.piso) || '',
+            ciudad: (envio && envio.ciudad) || '',
+            provincia: (envio && envio.provincia) || '',
+            cp: (envio && envio.cp) || '',
+            dni: (envio && envio.dni) || '',
+          },
         },
       },
     });

@@ -561,7 +561,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.5)}
         <div class="cff"><label>Calle</label><input type="text" id="ck-calle" placeholder="Av. Corrientes"></div>
         <div class="cff-row"><div class="cff"><label>Número</label><input type="text" id="ck-numero" placeholder="1234"></div><div class="cff"><label>Piso/Depto</label><input type="text" id="ck-piso" placeholder="Opcional"></div></div>
         <div class="cff-row"><div class="cff"><label>Ciudad</label><input type="text" id="ck-ciudad" placeholder="Buenos Aires"></div><div class="cff"><label>Provincia</label><select id="ck-provincia"><option value="">Seleccioná</option><option>Buenos Aires</option><option>CABA</option><option>Córdoba</option><option>Santa Fe</option><option>Mendoza</option><option>Tucumán</option><option>Entre Ríos</option><option>Salta</option><option>Misiones</option><option>Chaco</option><option>Corrientes</option><option>Santiago del Estero</option><option>San Juan</option><option>Jujuy</option><option>Río Negro</option><option>Neuquén</option><option>Formosa</option><option>Chubut</option><option>San Luis</option><option>Catamarca</option><option>La Rioja</option><option>La Pampa</option><option>Santa Cruz</option><option>Tierra del Fuego</option></select></div></div>
-        <div class="cff-row"><div class="cff"><label>Código postal</label><input type="text" id="ck-cp" placeholder="1043"></div><div class="cff"><label>DNI (Andreani)</label><input type="text" id="ck-dni" placeholder="30.123.456"></div></div>
+        <div class="cff-row"><div class="cff"><label>Código postal</label><input type="text" id="ck-cp" placeholder="1043"></div><div class="cff"><label>DNI</label><input type="text" id="ck-dni" placeholder="30.123.456"></div></div>
         <div class="ck-btns"><button class="btn-ck-back" onclick="ckBack(1)">← Volver</button><button class="btn-ck-next" onclick="ckNext(1)">Continuar →</button></div>
       </div>
       <div class="ck-panel" id="panel-2">
@@ -1128,6 +1128,7 @@ function ckNext(from){
     if(!pagoSel){toast('Elegí un medio de pago');return;}
     if(pagoSel==='efectivo'){
       buildConfirmation();sendPedidoWa();
+      registrarPedidoEfectivo();
       setTimeout(()=>confWa(),500);
     }else{
       iniciarPagoMercadoPago();
@@ -1139,22 +1140,38 @@ function ckNext(from){
 function ckBack(from){ckStep=from-1;showPanel(ckStep);}
 function selPago(el,tipo){document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('sel'));el.classList.add('sel');pagoSel=tipo;}
 const PAGO_LABEL={efectivo:'Efectivo',transferencia:'Transferencia bancaria',mercadopago:'Mercado Pago',debito:'Débito',credito:'Crédito — 3 cuotas sin interés'};
+function armarItemsCarrito(){return cart.map(x=>({nombre:x.nm,cantidad:x.qty,precio:x.price}));}
+function armarComprador(){
+  return {
+    nombre:document.getElementById('ck-nombre').value.trim(),
+    apellido:document.getElementById('ck-apellido').value.trim(),
+    email:document.getElementById('ck-email').value.trim(),
+    telefono:document.getElementById('ck-tel').value.trim(),
+  };
+}
+function armarEnvio(){
+  return {
+    calle:document.getElementById('ck-calle').value.trim(),
+    numero:document.getElementById('ck-numero').value.trim(),
+    piso:document.getElementById('ck-piso').value.trim(),
+    ciudad:document.getElementById('ck-ciudad').value.trim(),
+    provincia:document.getElementById('ck-provincia').value.trim(),
+    cp:document.getElementById('ck-cp').value.trim(),
+    dni:document.getElementById('ck-dni').value.trim(),
+  };
+}
 async function iniciarPagoMercadoPago(){
   const btn=document.getElementById('ck-pay-btn');
   const originalTxt=btn.textContent;
   btn.disabled=true;btn.textContent='Redirigiendo a Mercado Pago…';
   try{
-    const items=cart.map(x=>({nombre:x.nm,cantidad:x.qty,precio:x.price}));
-    const comprador={
-      nombre:document.getElementById('ck-nombre').value.trim(),
-      apellido:document.getElementById('ck-apellido').value.trim(),
-      email:document.getElementById('ck-email').value.trim(),
-      telefono:document.getElementById('ck-tel').value.trim(),
-    };
+    const items=armarItemsCarrito();
+    const comprador=armarComprador();
+    const envio=armarEnvio();
     const r=await fetch('/api/crear-preferencia',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({items,comprador,metodoPago:pagoSel})
+      body:JSON.stringify({items,comprador,envio,metodoPago:pagoSel})
     });
     const data=await r.json();
     if(!r.ok||!data.init_point)throw new Error(data.error||'No se pudo iniciar el pago');
@@ -1162,6 +1179,22 @@ async function iniciarPagoMercadoPago(){
   }catch(e){
     toast('❌ '+(e.message||'No se pudo iniciar el pago con Mercado Pago'));
     btn.disabled=false;btn.textContent=originalTxt;
+  }
+}
+async function registrarPedidoEfectivo(){
+  try{
+    const items=armarItemsCarrito();
+    const comprador=armarComprador();
+    const envio=armarEnvio();
+    await fetch('/api/registrar-pedido-efectivo',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({items,comprador,envio})
+    });
+  }catch(e){
+    // El pedido en efectivo se confirma igual por WhatsApp; esto es solo
+    // para que quede registrado en el admin y llegue el email de aviso.
+    console.error('No se pudo registrar el pedido en efectivo:',e);
   }
 }
 function buildConfirmation(){

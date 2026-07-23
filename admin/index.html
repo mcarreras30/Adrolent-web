@@ -113,6 +113,9 @@ tr:last-child td{border-bottom:none}
 .icon-btn{border:1.5px solid var(--border);background:var(--white);color:var(--text2);padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:all .2s}
 .icon-btn:hover{border-color:var(--blue);color:var(--blue)}
 .icon-btn.del:hover{border-color:var(--red);color:var(--red)}
+.ped-detail td{background:var(--bg);padding:16px}
+.ped-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.ped-detail-label{display:block;font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
 .empty-state,.loading-state{padding:48px;text-align:center;color:var(--text3);font-size:14px}
 
 /* MODAL */
@@ -196,7 +199,7 @@ tr:last-child td{border-bottom:none}
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Fecha</th><th>Productos</th><th>Total</th><th>Método de pago</th><th>Cliente</th><th>Estado</th></tr>
+          <tr><th></th><th>Fecha</th><th>Productos</th><th>Total</th><th>Método de pago</th><th>Cliente</th><th>Estado</th></tr>
         </thead>
         <tbody id="pedidos-tbody"></tbody>
       </table>
@@ -512,16 +515,35 @@ function renderPedidos(pedidos){
       ?items.map(it=>escapeHtml(`${it.nombre} x${it.cantidad}`)).join('<br>')
       :'—';
     const badgeClass=ESTADO_BADGE[p.estado]||'neutral';
+    const direccion=[p.calle&&p.numero?`${p.calle} ${p.numero}`:p.calle,p.piso].filter(Boolean).join(', ')||'—';
+    const localidad=[p.ciudad,p.provincia,p.cp].filter(Boolean).join(', ')||'—';
     return `
     <tr>
+      <td><button class="icon-btn" onclick="toggleDetallePedido(${p.id})" id="ped-toggle-${p.id}">▸</button></td>
       <td>${fecha}</td>
       <td>${productosHtml}</td>
       <td class="p-price">$${Number(p.total||0).toLocaleString('es-AR')}</td>
       <td>${escapeHtml(p.metodo_pago||'—')}</td>
       <td><div class="p-nm">${escapeHtml(p.cliente_nombre||'—')}</div><div class="p-desc">${escapeHtml(p.cliente_telefono||'')}</div></td>
       <td><span class="badge ${badgeClass}">${escapeHtml(p.estado||'—')}</span></td>
+    </tr>
+    <tr class="ped-detail" id="ped-detail-${p.id}" style="display:none">
+      <td colspan="7">
+        <div class="ped-detail-grid">
+          <div><span class="ped-detail-label">Dirección</span>${escapeHtml(direccion)}</div>
+          <div><span class="ped-detail-label">Ciudad / Provincia / CP</span>${escapeHtml(localidad)}</div>
+          <div><span class="ped-detail-label">DNI</span>${escapeHtml(p.dni||'—')}</div>
+        </div>
+      </td>
     </tr>`;
   }).join('');
+}
+function toggleDetallePedido(id){
+  const row=document.getElementById('ped-detail-'+id);
+  const btn=document.getElementById('ped-toggle-'+id);
+  const abierto=row.style.display==='table-row';
+  row.style.display=abierto?'none':'table-row';
+  btn.textContent=abierto?'▸':'▾';
 }
 
 // ── CATEGORÍAS ──

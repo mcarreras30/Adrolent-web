@@ -361,8 +361,6 @@ footer{background:var(--dark);color:rgba(255,255,255,.5)}
 .dtrow strong{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--text)}
 .btn-buy{width:100%;background:var(--blue);color:white;border:none;padding:13px;border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:all .2s;margin-bottom:8px}
 .btn-buy:hover{background:var(--blue-d);transform:translateY(-1px)}
-.btn-buy2{width:100%;background:#25d366;color:white;border:none;padding:11px;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;font-family:'Nunito',sans-serif;transition:all .2s}
-.btn-buy2:hover{opacity:.9}
 
 /* CHECKOUT */
 .ck-overlay{position:fixed;inset:0;background:rgba(15,31,61,.6);backdrop-filter:blur(6px);z-index:700;display:none;align-items:center;justify-content:center;padding:16px}
@@ -529,7 +527,6 @@ footer{background:var(--dark);color:rgba(255,255,255,.5)}
   <div class="dfoot" id="dfoot" style="display:none">
     <div class="dtrow"><span>Total</span><strong id="dtotal">$0</strong></div>
     <button class="btn-buy" onclick="openCheckout()">Finalizar compra</button>
-    <button class="btn-buy2" onclick="goWaCart()">💬 Pedir por WhatsApp</button>
   </div>
 </div>
 
@@ -1222,12 +1219,6 @@ function sendPedidoWa(){
   window._lastWaMsg=`🛒 *NUEVO PEDIDO — Adrolent*\n\n*Cliente:* ${n}\n*Tel:* ${t}\n*Dirección:* ${d}, ${c}\n\n*Productos:*\n${items}\n*Total: $${total.toLocaleString('es-AR')}*\n\n*Medio de pago:* ${PAGO_LABEL[pagoSel]}`;
 }
 function confWa(){window.open('https://wa.me/541140901495?text='+encodeURIComponent(window._lastWaMsg||'Hola Adrolent!'),'_blank');}
-function goWaCart(){
-  if(!cart.length){toast('Tu carrito está vacío');return;}
-  const l=cart.map(x=>`• ${x.nm} x${x.qty} = $${(x.price*x.qty).toLocaleString('es-AR')}`).join('\n');
-  const t=cart.reduce((s,x)=>s+x.price*x.qty,0);
-  window.open('https://wa.me/541140901495?text='+encodeURIComponent(`Hola Adrolent! Quiero hacer un pedido:\n\n${l}\n\nTotal: $${t.toLocaleString('es-AR')}`),'_blank');
-}
 
 // ── OBRAS ──
 function submitOS(){

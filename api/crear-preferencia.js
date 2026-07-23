@@ -28,6 +28,8 @@ module.exports = async (req, res) => {
   const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
   const preference = new Preference(client);
 
+  const dniLimpio = envio && envio.dni ? String(envio.dni).replace(/\D/g, '') : '';
+
   try {
     const result = await preference.create({
       body: {
@@ -42,6 +44,7 @@ module.exports = async (req, res) => {
           surname: comprador.apellido || '',
           email: comprador.email || undefined,
           phone: { number: String(comprador.telefono) },
+          identification: dniLimpio ? { type: 'DNI', number: dniLimpio } : undefined,
         },
         back_urls: {
           success: `${origin}/gracias.html`,

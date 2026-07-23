@@ -109,6 +109,11 @@ tr:last-child td{border-bottom:none}
 .badge{display:inline-block;padding:3px 10px;border-radius:50px;font-size:11px;font-weight:700}
 .badge.ok{background:#dcfce7;color:#15803d}
 .badge.no{background:#fee2e2;color:#b91c1c}
+.badge.warn{background:#fef3c7;color:#92400e}
+.badge.purple{background:#ede9fe;color:#6d28d9}
+.badge.info{background:#cffafe;color:#0e7490}
+.badge.indigo{background:#e0e7ff;color:#3730a3}
+select.badge{border:none;cursor:pointer;font-family:'Nunito',sans-serif;-webkit-appearance:none;appearance:none}
 .row-actions{display:flex;gap:8px}
 .icon-btn{border:1.5px solid var(--border);background:var(--white);color:var(--text2);padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:all .2s}
 .icon-btn:hover{border-color:var(--blue);color:var(--blue)}
@@ -495,7 +500,24 @@ function toast(msg){
 }
 
 // ── PEDIDOS ──
-const ESTADO_BADGE={pagado:'ok',pendiente:'neutral',cancelado:'no'};
+const ESTADO_BADGE={
+  pendiente:'neutral',
+  pagado:'ok',
+  en_preparacion:'warn',
+  listo_para_retirar:'purple',
+  enviado:'info',
+  entregado:'indigo',
+  cancelado:'no',
+};
+const ESTADO_LABEL={
+  pendiente:'Pendiente',
+  pagado:'Pagado',
+  en_preparacion:'En preparación',
+  listo_para_retirar:'Listo para retirar',
+  enviado:'Enviado',
+  entregado:'Entregado',
+  cancelado:'Cancelado',
+};
 async function loadPedidos(){
   document.getElementById('pedidos-loading').style.display='block';
   document.getElementById('pedidos-empty').style.display='none';
@@ -525,7 +547,11 @@ function renderPedidos(pedidos){
       <td class="p-price">$${Number(p.total||0).toLocaleString('es-AR')}</td>
       <td>${escapeHtml(p.metodo_pago||'—')}</td>
       <td><div class="p-nm">${escapeHtml(p.cliente_nombre||'—')}</div><div class="p-desc">${escapeHtml(p.cliente_telefono||'')}</div></td>
-      <td><span class="badge ${badgeClass}">${escapeHtml(p.estado||'—')}</span></td>
+      <td>
+        <select class="badge ${badgeClass}" onchange="cambiarEstadoPedido(${p.id},this)">
+          ${Object.keys(ESTADO_LABEL).map(key=>`<option value="${key}"${p.estado===key?' selected':''}>${ESTADO_LABEL[key]}</option>`).join('')}
+        </select>
+      </td>
     </tr>
     <tr class="ped-detail" id="ped-detail-${p.id}" style="display:none">
       <td colspan="7">
@@ -544,6 +570,15 @@ function toggleDetallePedido(id){
   const abierto=row.style.display==='table-row';
   row.style.display=abierto?'none':'table-row';
   btn.textContent=abierto?'▸':'▾';
+}
+async function cambiarEstadoPedido(id,selectEl){
+  const nuevoEstado=selectEl.value;
+  selectEl.disabled=true;
+  const {error}=await sb.from('pedidos').update({estado:nuevoEstado}).eq('id',id);
+  selectEl.disabled=false;
+  if(error){toast('Error al actualizar estado: '+error.message);return;}
+  selectEl.className='badge '+(ESTADO_BADGE[nuevoEstado]||'neutral');
+  toast('✅ Estado actualizado');
 }
 
 // ── CATEGORÍAS ──

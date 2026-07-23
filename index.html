@@ -993,6 +993,17 @@ async function cargarProductos(){
   if(selCat)renderProds();
 }
 
+async function cargarImagenesCategorias(){
+  const {data,error}=await sb.from('categorias').select('slug,imagen_url');
+  if(error){console.error('Error cargando imágenes de categorías:',error);return;}
+  (data||[]).forEach(row=>{
+    if(!row.imagen_url)return;
+    const cat=CATS.find(c=>c.id===row.slug);
+    if(cat)cat.img=row.imagen_url;
+  });
+  renderCats();
+}
+
 let selCat=null,cart=[];
 
 function renderCats(){
@@ -1225,6 +1236,7 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 function sc(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth'});}
 
 cargarProductos();
+cargarImagenesCategorias();
 renderCats();
 selectCat('receta');
 </script>

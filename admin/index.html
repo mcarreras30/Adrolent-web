@@ -85,6 +85,15 @@ body.ready{visibility:visible}
 .stat-sub{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--text);margin-bottom:12px}
 @media(max-width:820px){.stat-grid{grid-template-columns:1fr}}
 
+/* CATEGORÍAS */
+.cat-cover-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.cat-cover-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+.cat-cover-img{aspect-ratio:1;background:var(--blue-xxl);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.cat-cover-img img{width:100%;height:100%;object-fit:cover}
+.cat-cover-img .no-img{font-size:12px;color:var(--text3)}
+.cat-cover-body{padding:14px 16px}
+.cat-cover-nm{font-weight:700;color:var(--text);margin-bottom:10px}
+
 /* TABLE */
 .table-wrap{background:var(--white);border-radius:var(--r2);border:1px solid var(--border);overflow:hidden}
 table{width:100%;border-collapse:collapse}
@@ -157,6 +166,7 @@ tr:last-child td{border-bottom:none}
   <div class="tabs">
     <button class="tab-item active" id="tabbtn-productos" onclick="showTab('productos')">Productos</button>
     <button class="tab-item" id="tabbtn-pedidos" onclick="showTab('pedidos')">Pedidos</button>
+    <button class="tab-item" id="tabbtn-categorias" onclick="showTab('categorias')">Categorías</button>
     <button class="tab-item" id="tabbtn-stats" onclick="showTab('stats')">Estadísticas</button>
   </div>
 
@@ -191,6 +201,14 @@ tr:last-child td{border-bottom:none}
       <div class="loading-state" id="pedidos-loading" style="display:none">Cargando pedidos…</div>
       <div class="empty-state" id="pedidos-empty" style="display:none">Todavía no hay pedidos registrados.</div>
     </div>
+  </div>
+
+  <div class="main tab-panel" id="tab-categorias">
+    <div class="main-head">
+      <h2>Categorías</h2>
+    </div>
+    <div class="loading-state" id="categorias-loading">Cargando categorías…</div>
+    <div class="cat-cover-grid" id="categorias-grid" style="display:none"></div>
   </div>
 
   <div class="main tab-panel" id="tab-stats">
@@ -326,6 +344,7 @@ function showTab(name){
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='stats')loadStats();
   if(name==='pedidos')loadPedidos();
+  if(name==='categorias')loadCategorias();
 }
 
 // ── PRODUCTOS ──
@@ -501,6 +520,54 @@ function renderPedidos(pedidos){
       <td><span class="badge ${badgeClass}">${escapeHtml(p.estado||'—')}</span></td>
     </tr>`;
   }).join('');
+}
+
+// ── CATEGORÍAS ──
+let categorias=[];
+async function loadCategorias(){
+  document.getElementById('categorias-loading').style.display='block';
+  document.getElementById('categorias-grid').style.display='none';
+  const {data,error}=await sb.from('categorias').select('*').order('id');
+  document.getElementById('categorias-loading').style.display='none';
+  if(error){toast('Error al cargar categorías: '+error.message);return;}
+  categorias=data||[];
+  renderCategoriasGrid();
+  document.getElementById('categorias-grid').style.display='grid';
+}
+function renderCategoriasGrid(){
+  document.getElementById('categorias-grid').innerHTML=categorias.map(c=>`
+    <div class="cat-cover-card">
+      <div class="cat-cover-img" id="cat-cover-img-${c.id}">
+        ${c.imagen_url?`<img src="${c.imagen_url}" alt="${escapeHtml(c.nombre)}">`:'<span class="no-img">Sin foto</span>'}
+      </div>
+      <div class="cat-cover-body">
+        <div class="cat-cover-nm">${escapeHtml(c.nombre)}</div>
+        <input type="file" accept="image/*" id="cat-file-${c.id}" style="display:none" onchange="cambiarFotoCategoria(${c.id},this)">
+        <button class="icon-btn" id="cat-btn-${c.id}" onclick="document.getElementById('cat-file-${c.id}').click()">Cambiar foto</button>
+      </div>
+    </div>`).join('');
+}
+async function cambiarFotoCategoria(id,input){
+  if(!input.files||!input.files[0])return;
+  const file=input.files[0];
+  const btn=document.getElementById('cat-btn-'+id);
+  const originalTxt=btn.textContent;
+  btn.disabled=true;btn.textContent='Subiendo…';
+  try{
+    const path=`categoria_${id}_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+    const {error:upErr}=await sb.storage.from('productos-fotos').upload(path,file,{upsert:false});
+    if(upErr)throw upErr;
+    const {data:pub}=sb.storage.from('productos-fotos').getPublicUrl(path);
+    const {error}=await sb.from('categorias').update({imagen_url:pub.publicUrl}).eq('id',id);
+    if(error)throw error;
+    const cat=categorias.find(c=>c.id===id);
+    if(cat)cat.imagen_url=pub.publicUrl;
+    renderCategoriasGrid();
+    toast('✅ Foto de categoría actualizada');
+  }catch(e){
+    toast('Error al subir la foto: '+e.message);
+    btn.disabled=false;btn.textContent=originalTxt;
+  }
 }
 
 // ── ESTADÍSTICAS ──

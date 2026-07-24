@@ -803,7 +803,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.5)}
           <div class="upload-txt">Foto de la credencial / receta<small>Hacé clic para cargar · PNG, JPG o PDF</small></div>
         </div>
         <div id="cred-preview" style="display:none;margin-bottom:12px">
-          <img id="cred-preview-img" style="max-height:70px;border-radius:8px;border:1px solid rgba(255,255,255,.2)">
+          <img id="cred-preview-img" alt="Vista previa de la credencial subida" style="max-height:70px;border-radius:8px;border:1px solid rgba(255,255,255,.2)">
           <button onclick="removeCredPreview()" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:12px;margin-left:8px">✕ Quitar</button>
         </div>
         <button class="btn-consult" onclick="submitOS()">
@@ -1126,7 +1126,7 @@ function renderDrawer(){
   df.style.display='block';
   db.innerHTML=cart.map(it=>`
     <div class="ci">
-      <img src="${it.img}" alt="${it.nm}" onerror="this.style.background='var(--blue-xxl)'">
+      <img src="${it.img}" alt="${it.nm}" loading="lazy" onerror="this.style.background='var(--blue-xxl)'">
       <div class="ci-b">
         <div class="ci-n">${it.nm}</div>
         <div class="ci-p">$${(it.price*it.qty).toLocaleString('es-AR')}</div>

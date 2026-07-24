@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { enviarEmailVenta } = require('../lib/notificar-venta');
+const { enviarEmailConfirmacionCliente } = require('../lib/confirmar-pedido-cliente');
 
 const SUPABASE_URL = 'https://qrcrjxfucxoydzcthobd.supabase.co';
 
@@ -60,22 +61,26 @@ module.exports = async (req, res) => {
 
     const meta = payment.metadata || {};
     const envio = meta.envio || {};
-    const { error: insError } = await sb.from('pedidos').insert({
-      productos: meta.productos || [],
-      total: payment.transaction_amount,
-      estado: 'pagado',
-      metodo_pago: meta.metodo_pago || payment.payment_type_id || 'mercadopago',
-      cliente_nombre: meta.cliente_nombre || '',
-      cliente_telefono: meta.cliente_telefono || '',
-      mp_payment_id: paymentIdStr,
-      calle: envio.calle || null,
-      numero: envio.numero || null,
-      piso: envio.piso || null,
-      ciudad: envio.ciudad || null,
-      provincia: envio.provincia || null,
-      cp: envio.cp || null,
-      dni: envio.dni || null,
-    });
+    const { data: pedidoInsertado, error: insError } = await sb
+      .from('pedidos')
+      .insert({
+        productos: meta.productos || [],
+        total: payment.transaction_amount,
+        estado: 'pagado',
+        metodo_pago: meta.metodo_pago || payment.payment_type_id || 'mercadopago',
+        cliente_nombre: meta.cliente_nombre || '',
+        cliente_telefono: meta.cliente_telefono || '',
+        mp_payment_id: paymentIdStr,
+        calle: envio.calle || null,
+        numero: envio.numero || null,
+        piso: envio.piso || null,
+        ciudad: envio.ciudad || null,
+        provincia: envio.provincia || null,
+        cp: envio.cp || null,
+        dni: envio.dni || null,
+      })
+      .select('id')
+      .single();
 
     if (insError) {
       console.error('Error insertando pedido:', insError);
@@ -97,6 +102,18 @@ module.exports = async (req, res) => {
       // El pedido ya quedó registrado; un email que falla no debe hacer
       // que Mercado Pago reintente ni afectar la respuesta del webhook.
       console.error('Error enviando email de notificación de venta:', emailErr);
+    }
+
+    try {
+      await enviarEmailConfirmacionCliente({
+        email: payment.payer && payment.payer.email,
+        productos: meta.productos,
+        total: payment.transaction_amount,
+        pendienteCobro: false,
+        pedidoId: pedidoInsertado.id,
+      });
+    } catch (emailClienteErr) {
+      console.error('Error enviando email de confirmación al cliente:', emailClienteErr);
     }
 
     res.status(200).json({ received: true });

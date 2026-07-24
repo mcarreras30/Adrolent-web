@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { enviarEmailVenta } = require('../lib/notificar-venta');
+const { enviarEmailConfirmacionCliente } = require('../lib/confirmar-pedido-cliente');
 
 const SUPABASE_URL = 'https://qrcrjxfucxoydzcthobd.supabase.co';
 
@@ -68,6 +69,18 @@ module.exports = async (req, res) => {
     } catch (emailErr) {
       // El pedido ya quedó registrado; un email que falla no debe romper la respuesta.
       console.error('Error enviando email de aviso de pedido en efectivo:', emailErr);
+    }
+
+    try {
+      await enviarEmailConfirmacionCliente({
+        email: comprador.email,
+        productos,
+        total,
+        pendienteCobro: true,
+        pedidoId: data.id,
+      });
+    } catch (emailClienteErr) {
+      console.error('Error enviando email de confirmación al cliente:', emailClienteErr);
     }
 
     res.status(200).json({ ok: true, id: data.id });

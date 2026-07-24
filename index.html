@@ -62,6 +62,7 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://qrcrjxfucxoydzcthobd.supabase.co">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
@@ -1074,6 +1075,8 @@ function selectCat(id){
   } else pa.style.display='none';
 }
 
+function escapeHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
 function renderProds(){
   document.getElementById('pgrid').className='pgrid';
   if(!productosCargados){
@@ -1088,12 +1091,12 @@ function renderProds(){
   document.getElementById('pgrid').innerHTML=items.map((p,i)=>`
     <div class="pc rv d${(i%4)+1}">
       <div class="pc-img">
-        <img src="${p.imagen_url||''}" alt="${p.nombre}" loading="lazy" onerror="this.style.background='var(--blue-xxl)'">
+        <img src="${p.imagen_url||''}" alt="${escapeHtml(p.nombre)}" loading="lazy" onerror="this.style.background='var(--blue-xxl)'">
       </div>
       <div class="pc-body">
-        ${p.marca?`<div class="pc-cat">${p.marca}</div>`:''}
-        <div class="pc-nm">${p.nombre}</div>
-        <div class="pc-ds">${p.descripcion||''}</div>
+        ${p.marca?`<div class="pc-cat">${escapeHtml(p.marca)}</div>`:''}
+        <div class="pc-nm">${escapeHtml(p.nombre)}</div>
+        <div class="pc-ds">${escapeHtml(p.descripcion||'')}</div>
         <div class="pc-ft">
           <div class="pc-pr">$${Number(p.precio).toLocaleString('es-AR')}</div>
           <button class="btn-add" id="ba-${p.id}" onclick="addCart(${p.id})">+ Agregar</button>
@@ -1253,11 +1256,11 @@ async function registrarPedidoEfectivo(){
   }
 }
 function buildConfirmation(){
-  const n=document.getElementById('ck-nombre').value+' '+document.getElementById('ck-apellido').value;
-  const e=document.getElementById('ck-email').value;
-  const t=document.getElementById('ck-tel').value;
-  const d=document.getElementById('ck-calle').value+' '+document.getElementById('ck-numero').value;
-  const c=document.getElementById('ck-ciudad').value+', '+document.getElementById('ck-provincia').value;
+  const n=escapeHtml(document.getElementById('ck-nombre').value+' '+document.getElementById('ck-apellido').value);
+  const e=escapeHtml(document.getElementById('ck-email').value);
+  const t=escapeHtml(document.getElementById('ck-tel').value);
+  const d=escapeHtml(document.getElementById('ck-calle').value+' '+document.getElementById('ck-numero').value);
+  const c=escapeHtml(document.getElementById('ck-ciudad').value+', '+document.getElementById('ck-provincia').value);
   const total=cart.reduce((s,x)=>s+x.price*x.qty,0);
   document.getElementById('conf-details').innerHTML=`
     <div class="conf-row"><span>Cliente</span><span>${n}</span></div>

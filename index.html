@@ -1060,7 +1060,7 @@ function renderCats(){
   document.querySelectorAll('.rv:not(.vis)').forEach(el=>ro.observe(el));
 }
 
-function selectCat(id){
+function selectCat(id, scroll=true){
   selCat=(selCat===id)?null:id;
   renderCats();
   const pa=document.getElementById('prod-area');
@@ -1071,7 +1071,7 @@ function selectCat(id){
     const qn=document.getElementById('qn-'+selCat);
     document.querySelectorAll('.qn-item').forEach(q=>q.classList.remove('active'));
     if(qn)qn.classList.add('active');
-    setTimeout(()=>pa.scrollIntoView({behavior:'smooth',block:'nearest'}),80);
+    if(scroll) setTimeout(()=>pa.scrollIntoView({behavior:'smooth',block:'nearest'}),80);
   } else pa.style.display='none';
 }
 
@@ -1309,7 +1309,7 @@ function sc(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth'})
 cargarProductos();
 cargarImagenesCategorias();
 renderCats();
-selectCat('receta');
+selectCat('receta', false);
 </script>
 </body>
 </html>

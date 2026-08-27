@@ -421,6 +421,21 @@ footer{background:var(--dark);color:rgba(255,255,255,.5)}
 /* CHECKOUT */
 .ck-overlay{position:fixed;inset:0;background:rgba(15,31,61,.6);backdrop-filter:blur(6px);z-index:700;display:none;align-items:center;justify-content:center;padding:16px}
 .ck-overlay.on{display:flex}
+.gal-overlay{position:fixed;inset:0;background:rgba(15,31,61,.6);backdrop-filter:blur(6px);z-index:650;display:none;align-items:center;justify-content:center;padding:16px}
+.gal-overlay.on{display:flex}
+.gal-modal{background:var(--white);border-radius:var(--r2);max-width:520px;width:100%;overflow:hidden;position:relative}
+.gal-close{position:absolute;top:10px;right:10px;z-index:2;background:rgba(0,0,0,.5);color:#fff;border:0;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer}
+.gal-img-wrap{position:relative;aspect-ratio:1;background:var(--blue-xxl)}
+.gal-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.gal-arrow{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.4);color:#fff;border:0;width:36px;height:36px;border-radius:50%;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.gal-prev{left:10px}
+.gal-next{right:10px}
+.gal-dots{display:flex;justify-content:center;gap:6px;padding:10px 0}
+.gal-dot{width:7px;height:7px;border-radius:50%;background:var(--border);cursor:pointer}
+.gal-dot.on{background:var(--blue)}
+.gal-info{padding:0 18px 18px;text-align:center}
+.gal-nm{font-weight:600;font-size:15px;color:var(--text)}
+.gal-pr{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--blue);margin-top:2px}
 .ck-box{background:var(--white);border-radius:var(--r3);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:0 32px 64px rgba(0,0,0,.2);animation:ckIn .3s cubic-bezier(.34,1.56,.64,1)}
 @keyframes ckIn{from{opacity:0;transform:scale(.94) translateY(16px)}to{opacity:1;transform:none}}
 .ck-head{display:flex;align-items:center;justify-content:space-between;padding:22px 26px 0}
@@ -978,6 +993,22 @@ footer{background:var(--dark);color:rgba(255,255,255,.5)}
   </div>
 </div>
 
+<div class="gal-overlay" id="gal-overlay" onclick="galBgClose(event)">
+  <div class="gal-modal">
+    <button class="gal-close" onclick="cerrarGaleria()">✕</button>
+    <div class="gal-img-wrap">
+      <button class="gal-arrow gal-prev" onclick="galAnterior()">‹</button>
+      <img id="gal-img" alt="">
+      <button class="gal-arrow gal-next" onclick="galSiguiente()">›</button>
+    </div>
+    <div class="gal-dots" id="gal-dots"></div>
+    <div class="gal-info">
+      <div class="gal-nm" id="gal-nm"></div>
+      <div class="gal-pr" id="gal-pr"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── REVEAL ──
 const ro = new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis')}),{threshold:.08,rootMargin:'0px 0px -30px 0px'});
@@ -1089,9 +1120,10 @@ function renderProds(){
     return;
   }
   document.getElementById('pgrid').innerHTML=items.map((p,i)=>`
-    <div class="pc rv d${(i%4)+1}">
+    <div class="pc rv d${(i%4)+1}" onclick="abrirGaleria(${p.id})">
       <div class="pc-img">
         <img src="${p.imagen_url||''}" alt="${escapeHtml(p.nombre)}" loading="lazy" onerror="this.style.background='var(--blue-xxl)'">
+        ${p.fotos&&p.fotos.length>1?`<div class="pc-badge">📷 ${p.fotos.length}</div>`:''}
       </div>
       <div class="pc-body">
         ${p.marca?`<div class="pc-cat">${escapeHtml(p.marca)}</div>`:''}
@@ -1099,12 +1131,51 @@ function renderProds(){
         <div class="pc-ds">${escapeHtml(p.descripcion||'')}</div>
         <div class="pc-ft">
           <div class="pc-pr">$${Number(p.precio).toLocaleString('es-AR')}</div>
-          <button class="btn-add" id="ba-${p.id}" onclick="addCart(${p.id})">+ Agregar</button>
+          <button class="btn-add" id="ba-${p.id}" onclick="event.stopPropagation();addCart(${p.id})">+ Agregar</button>
         </div>
       </div>
     </div>`).join('');
   document.querySelectorAll('.rv:not(.vis)').forEach(el=>ro.observe(el));
 }
+
+// ── GALERÍA DE FOTOS ──
+let galFotos=[],galIndex=0;
+
+function abrirGaleria(id){
+  const p=PRODUCTOS.find(x=>x.id===id);
+  if(!p)return;
+  galFotos=(p.fotos&&p.fotos.length)?p.fotos:(p.imagen_url?[p.imagen_url]:[]);
+  if(!galFotos.length)return;
+  galIndex=0;
+  document.getElementById('gal-nm').textContent=p.nombre;
+  document.getElementById('gal-pr').textContent='$'+Number(p.precio).toLocaleString('es-AR');
+  renderGaleria();
+  document.getElementById('gal-overlay').classList.add('on');
+  document.body.style.overflow='hidden';
+}
+
+function renderGaleria(){
+  document.getElementById('gal-img').src=galFotos[galIndex];
+  const multi=galFotos.length>1;
+  document.querySelector('.gal-prev').style.display=multi?'flex':'none';
+  document.querySelector('.gal-next').style.display=multi?'flex':'none';
+  document.getElementById('gal-dots').innerHTML=multi
+    ?galFotos.map((_,i)=>`<span class="gal-dot${i===galIndex?' on':''}" onclick="galIrA(${i})"></span>`).join('')
+    :'';
+}
+
+function galSiguiente(){galIndex=(galIndex+1)%galFotos.length;renderGaleria();}
+function galAnterior(){galIndex=(galIndex-1+galFotos.length)%galFotos.length;renderGaleria();}
+function galIrA(i){galIndex=i;renderGaleria();}
+function cerrarGaleria(){document.getElementById('gal-overlay').classList.remove('on');document.body.style.overflow='';}
+function galBgClose(e){if(e.target===document.getElementById('gal-overlay'))cerrarGaleria();}
+
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('gal-overlay').classList.contains('on'))return;
+  if(e.key==='ArrowRight')galSiguiente();
+  else if(e.key==='ArrowLeft')galAnterior();
+  else if(e.key==='Escape')cerrarGaleria();
+});
 
 // ── CARRITO ──
 function addCart(id){

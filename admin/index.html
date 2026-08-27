@@ -441,8 +441,13 @@ function previewFoto(input){
 //  3. Crear un OAuth Client ID (Web application) con Authorized JavaScript origins
 //     https://opticaadrolent.com y http://localhost:<puerto de prueba>.
 //  4. Crear una API key restringida a "Picker API".
-//  5. Cargar GOOGLE_CLIENT_ID y GOOGLE_PICKER_API_KEY en Vercel → Environment Variables
-//     y redeploy — este archivo los pide a /api/config, nunca los hardcodea.
+//  5. Copiar el "Project number" del proyecto (portada del proyecto en Cloud Console
+//     o Settings → Project number — NO es el Client ID ni el Project ID de texto).
+//  6. Cargar GOOGLE_CLIENT_ID, GOOGLE_PICKER_API_KEY y GOOGLE_PROJECT_NUMBER en
+//     Vercel → Environment Variables y redeploy — este archivo los pide a
+//     /api/config, nunca los hardcodea. GOOGLE_PROJECT_NUMBER es necesario para
+//     que el scope drive.file otorgue acceso real al archivo elegido en el Picker
+//     (sin esto, la descarga posterior a elegir un archivo da 404).
 let googleConfig=null, googleScriptsListos=false, googleTokenClient=null;
 
 async function cargarConfigGoogle(){
@@ -481,7 +486,7 @@ async function abrirGooglePicker(){
       googleTokenClient=google.accounts.oauth2.initTokenClient({
         client_id:cfg.googleClientId,
         scope:'https://www.googleapis.com/auth/drive.file',
-        callback:tok=>abrirPickerConToken(tok.access_token,cfg.googlePickerApiKey),
+        callback:tok=>abrirPickerConToken(tok.access_token,cfg.googlePickerApiKey,cfg.googleProjectNumber),
       });
     }
     googleTokenClient.requestAccessToken();
@@ -490,10 +495,10 @@ async function abrirGooglePicker(){
   }
 }
 
-function abrirPickerConToken(accessToken,pickerApiKey){
+function abrirPickerConToken(accessToken,pickerApiKey,projectNumber){
   const view=new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
     .setMimeTypes('image/png,image/jpeg,image/webp');
-  new google.picker.PickerBuilder()
+  const builder=new google.picker.PickerBuilder()
     .addView(view)
     .setOAuthToken(accessToken)
     .setDeveloperKey(pickerApiKey)
@@ -501,8 +506,12 @@ function abrirPickerConToken(accessToken,pickerApiKey){
       if(data.action===google.picker.Action.PICKED){
         descargarYUsarDeDrive(data.docs[0],accessToken);
       }
-    })
-    .build().setVisible(true);
+    });
+  // setAppId es necesario para que, con el scope drive.file, elegir un archivo
+  // en el Picker realmente le otorgue acceso puntual a ese archivo a esta app
+  // (sin esto el Picker lo muestra igual, pero la descarga posterior da 404).
+  if(projectNumber)builder.setAppId(projectNumber);
+  builder.build().setVisible(true);
 }
 
 async function descargarYUsarDeDrive(doc,accessToken){
@@ -510,7 +519,12 @@ async function descargarYUsarDeDrive(doc,accessToken){
     const r=await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`,{
       headers:{Authorization:`Bearer ${accessToken}`},
     });
-    if(!r.ok)throw new Error('No se pudo descargar el archivo de Drive');
+    if(!r.ok){
+      if(r.status===404){
+        throw new Error('No se pudo acceder a esta imagen desde Drive. Probá elegir otro archivo, o subilo directamente con el botón de arriba.');
+      }
+      throw new Error('No se pudo descargar el archivo de Drive');
+    }
     const blob=await r.blob();
     fotoFile=new File([blob],doc.name,{type:doc.mimeType});
     const pv=document.getElementById('foto-preview');

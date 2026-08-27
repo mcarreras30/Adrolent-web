@@ -289,6 +289,7 @@ select.badge{border:none;cursor:pointer;font-family:'Nunito',sans-serif;-webkit-
       <div class="fld">
         <label>Foto</label>
         <input type="file" id="f-foto" accept="image/*" onchange="previewFoto(this)">
+        <button type="button" class="btn btn-outline" id="btn-drive" onclick="abrirGooglePicker()" style="margin-top:8px">📁 Elegir desde Google Drive</button>
         <img id="foto-preview" class="thumb-preview" alt="Vista previa">
       </div>
       <div class="fld" style="margin-bottom:0">
@@ -429,6 +430,95 @@ function previewFoto(input){
     const r=new FileReader();
     r.onload=e=>{const pv=document.getElementById('foto-preview');pv.src=e.target.result;pv.classList.add('on');};
     r.readAsDataURL(fotoFile);
+  }
+}
+
+// ── Elegir foto desde Google Drive ──
+// TODO configuración manual requerida antes de poder usar esto (ver plan/README):
+//  1. En Google Cloud Console: habilitar "Google Drive API" y "Google Picker API".
+//  2. OAuth consent screen en modo "Testing", agregando como test users los emails
+//     de Gmail que van a loguear en /admin (con drive.file no hace falta verificación).
+//  3. Crear un OAuth Client ID (Web application) con Authorized JavaScript origins
+//     https://opticaadrolent.com y http://localhost:<puerto de prueba>.
+//  4. Crear una API key restringida a "Picker API".
+//  5. Cargar GOOGLE_CLIENT_ID y GOOGLE_PICKER_API_KEY en Vercel → Environment Variables
+//     y redeploy — este archivo los pide a /api/config, nunca los hardcodea.
+let googleConfig=null, googleScriptsListos=false, googleTokenClient=null;
+
+async function cargarConfigGoogle(){
+  if(googleConfig)return googleConfig;
+  const r=await fetch('/api/config');
+  googleConfig=await r.json();
+  return googleConfig;
+}
+
+function asegurarScriptsGoogle(){
+  if(googleScriptsListos)return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    let pendientes=2;
+    const listo=()=>{if(--pendientes===0){googleScriptsListos=true;resolve();}};
+    const s1=document.createElement('script');
+    s1.src='https://accounts.google.com/gsi/client';
+    s1.onload=listo;s1.onerror=reject;
+    document.head.appendChild(s1);
+    const s2=document.createElement('script');
+    s2.src='https://apis.google.com/js/api.js';
+    s2.onload=()=>gapi.load('picker',listo);
+    s2.onerror=reject;
+    document.head.appendChild(s2);
+  });
+}
+
+async function abrirGooglePicker(){
+  try{
+    const cfg=await cargarConfigGoogle();
+    if(!cfg.googleClientId||!cfg.googlePickerApiKey){
+      toast('Falta configurar GOOGLE_CLIENT_ID/GOOGLE_PICKER_API_KEY en Vercel');
+      return;
+    }
+    await asegurarScriptsGoogle();
+    if(!googleTokenClient){
+      googleTokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:cfg.googleClientId,
+        scope:'https://www.googleapis.com/auth/drive.file',
+        callback:tok=>abrirPickerConToken(tok.access_token,cfg.googlePickerApiKey),
+      });
+    }
+    googleTokenClient.requestAccessToken();
+  }catch(e){
+    toast('Error abriendo el selector de Google Drive: '+e.message);
+  }
+}
+
+function abrirPickerConToken(accessToken,pickerApiKey){
+  const view=new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
+    .setMimeTypes('image/png,image/jpeg,image/webp');
+  new google.picker.PickerBuilder()
+    .addView(view)
+    .setOAuthToken(accessToken)
+    .setDeveloperKey(pickerApiKey)
+    .setCallback(data=>{
+      if(data.action===google.picker.Action.PICKED){
+        descargarYUsarDeDrive(data.docs[0],accessToken);
+      }
+    })
+    .build().setVisible(true);
+}
+
+async function descargarYUsarDeDrive(doc,accessToken){
+  try{
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`,{
+      headers:{Authorization:`Bearer ${accessToken}`},
+    });
+    if(!r.ok)throw new Error('No se pudo descargar el archivo de Drive');
+    const blob=await r.blob();
+    fotoFile=new File([blob],doc.name,{type:doc.mimeType});
+    const pv=document.getElementById('foto-preview');
+    pv.src=URL.createObjectURL(blob);
+    pv.classList.add('on');
+    toast('✅ Imagen de Drive lista — hacé click en Guardar');
+  }catch(e){
+    toast('Error al traer la imagen de Drive: '+e.message);
   }
 }
 

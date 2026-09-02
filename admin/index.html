@@ -126,6 +126,8 @@ select.badge{border:none;cursor:pointer;font-family:'Nunito',sans-serif;-webkit-
 /* MODAL */
 .overlay{position:fixed;inset:0;background:rgba(15,31,61,.6);backdrop-filter:blur(6px);z-index:700;display:none;align-items:center;justify-content:center;padding:16px}
 .overlay.on{display:flex}
+#lightbox-img{max-width:90vw;max-height:90vh;border-radius:12px;object-fit:contain;display:block}
+.lightbox-close{position:absolute;top:-14px;right:-14px;background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:50%;width:30px;height:30px;font-size:14px;cursor:pointer}
 .modal{background:var(--white);border-radius:var(--r3);width:100%;max-width:520px;max-height:92vh;overflow-y:auto;box-shadow:0 32px 64px rgba(0,0,0,.2)}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:22px 24px;border-bottom:1px solid var(--border)}
 .modal-head h2{font-family:'Nunito',sans-serif;font-weight:800;font-size:19px;color:var(--text)}
@@ -310,6 +312,13 @@ select.badge{border:none;cursor:pointer;font-family:'Nunito',sans-serif;-webkit-
   </div>
 </div>
 
+<div class="overlay" id="lightbox-overlay" onclick="if(event.target===this)cerrarLightbox()">
+  <div style="position:relative">
+    <button class="lightbox-close" onclick="cerrarLightbox()">✕</button>
+    <img id="lightbox-img" alt="Foto ampliada">
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -381,7 +390,7 @@ function renderTabla(){
   document.getElementById('prod-empty').style.display='none';
   tb.innerHTML=productos.map(p=>`
     <tr>
-      <td><img class="p-thumb" src="${p.imagen_url||''}" onerror="this.style.visibility='hidden'"></td>
+      <td><img class="p-thumb" src="${p.imagen_url||''}" onerror="this.style.visibility='hidden'" ${p.imagen_url?`style="cursor:pointer" onclick="abrirLightbox('${p.imagen_url}')"`:''}></td>
       <td><div class="p-nm">${escapeHtml(p.nombre||'')}</div><div class="p-desc">${escapeHtml(p.descripcion||'')}</div></td>
       <td>${escapeHtml(p.categoria||'')}</td>
       <td>${escapeHtml(p.marca||'—')}</td>
@@ -428,6 +437,16 @@ function openModal(id){
   document.getElementById('modal-overlay').classList.add('on');
 }
 function closeModal(){document.getElementById('modal-overlay').classList.remove('on');}
+
+function abrirLightbox(url){
+  if(!url)return;
+  document.getElementById('lightbox-img').src=url;
+  document.getElementById('lightbox-overlay').classList.add('on');
+}
+function cerrarLightbox(){document.getElementById('lightbox-overlay').classList.remove('on');}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&document.getElementById('lightbox-overlay').classList.contains('on'))cerrarLightbox();
+});
 function agregarFotosLocal(input){
   if(input.files&&input.files.length){
     for(const file of input.files)fotosState.push({tipo:'nuevo',file});
